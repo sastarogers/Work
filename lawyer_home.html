@@ -1,0 +1,123 @@
+<!-- Add this new grid area to the CSS -->
+<style>
+    main.dashboard-container {
+        grid-template-areas:
+            "profile lawyerinfo notifications"
+            "profile currentcases pastcases"
+            "profile completedcases ratings"
+            "profile winpercentage notifications"; /* Updated to include notifications */
+    }
+
+    /* Notifications Card Styling */
+    .notifications-card {
+        background: var(--secondary-bg);
+        border-radius: var(--bs-border-radius-lg);
+        padding: 1.5rem;
+        border: 1px solid var(--border-light);
+    }
+
+    .notification-item {
+        padding: 1rem;
+        background: var(--primary-bg);
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .notification-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .chat-link {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
+    }
+
+    .chat-link:hover {
+        color: var(--accent-hover);
+        text-decoration: underline;
+    }
+</style>
+
+<!-- Replace the existing notifications-section with this -->
+<div class="notifications-section dashboard-card">
+    <h5><i class="fas fa-bell"></i> Suggested Cases</h5>
+    <div id="notifications-list">
+        <!-- Notifications will be dynamically added here -->
+        <div class="notification-item">
+            <p class="notification-item-text mb-1">Loading suggestions...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Add this script section after the populateDashboard function -->
+<script>
+    // Function to fetch and display notifications
+    async function fetchNotifications(lawyerId) {
+        try {
+            const notificationsRef = db.collection('cases')
+                .where('status', '==', 'pending')
+                .limit(3);
+
+            const snapshot = await notificationsRef.get();
+            const notificationsList = document.getElementById('notifications-list');
+            notificationsList.innerHTML = '';
+
+            if (snapshot.empty) {
+                notificationsList.innerHTML = '<div class="notification-item"><p>No suggested cases at the moment</p></div>';
+                return;
+            }
+
+            snapshot.forEach(doc => {
+                const caseData = doc.data();
+                const notificationItem = document.createElement('div');
+                notificationItem.className = 'notification-item';
+                notificationItem.innerHTML = `
+                    <h6>${caseData.title || 'Untitled Case'}</h6>
+                    <p class="notification-item-text mb-1">${caseData.description || 'No description available'}</p>
+                    <a href="chat.html?caseId=${doc.id}" class="chat-link">Chat Now <i class="fas fa-arrow-right"></i></a>
+                `;
+                notificationsList.appendChild(notificationItem);
+            });
+        } catch (error) {
+            console.error('Error fetching notifications:', error);
+            notificationsList.innerHTML = '<div class="notification-item"><p>Error loading suggestions</p></div>';
+        }
+    }
+
+    // Update the auth state changed handler to include notifications
+    auth.onAuthStateChanged(async (user) => {
+        if (user) {
+            // ... existing code ...
+
+            try {
+                const docSnap = await lawyerDocRef.get();
+
+                if (docSnap.exists()) {
+                    // ... existing code ...
+
+                    // Fetch notifications after populating dashboard
+                    fetchNotifications(user.uid);
+                }
+                // ... rest of existing code ...
+            }
+            // ... rest of existing code ...
+        }
+    });
+
+    // Add chat functionality (basic example)
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('chat-link')) {
+            e.preventDefault();
+            const caseId = new URL(e.target.href).searchParams.get('caseId');
+            openChatWindow(caseId);
+        }
+    });
+
+    function openChatWindow(caseId) {
+        // Implement your chat functionality here
+        console.log('Opening chat for case:', caseId);
+        window.open(`chat.html?caseId=${caseId}`, '_blank');
+    }
+</script>
